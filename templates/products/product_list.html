@@ -1,0 +1,110 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Django Girls blog</title>
+        <link rel="stylesheet" href="{% static 'css/products.css' %}">
+    </head>
+    <body style="background-color:#BEBEBE">
+        <header class="page-header">
+            <div class="container" style="text-align:center">
+                <h1 style="text-align:center" style="color:green"><b>Amazon Price Alert App</b></h1>
+            </div>
+        </header>
+
+    <center>
+        <form action="add_product" method='POST' style="text-align: center">{% csrf_token %}
+            <p>Amazon-Link:</p>
+            <input id="amzn_url" name="amzn_url" style="display: inline-block; width: 800px">
+            <br>
+            <p>Wunschpreis:</p>
+            <input id="desired_price" name="desired_price">
+            <button id="add_to_list_btn" type="submit" value="Hinzufuegen">Hinzufügen</button>
+        </form>
+    </center>
+
+
+        <div style="overflow-x: auto;">
+            <table class="center">
+                <!-- data attribute names -->
+                <thead>
+                    <tr>
+                        <th>Thumbnail</th>
+                        <th style="width:40%">Titel</th>
+                        <th style="width:30%">URL</th>
+                        <th style="width:10%">Videolänge</th>
+                        <th style="width:10%"><button>Upload-Datum</button></th>
+                    </tr>
+                </thead>
+
+                <!-- data sets -->
+                    {% for prod in products %} <!-- iterieren in der Laenge (vertikal) -->
+                        <tr>
+                            <td style="border: 5px solid black; text-align:center; width: 5%">
+                                <img style="display:block; height:100px;" src={{ prod.img_url }}>
+                            </td>
+                            <td style="border: 5px solid black;">
+                               {{ prod.title }}
+                            </td>
+                            <td style="border: 5px solid black; width: 20%">
+                                <a href={{ prod.url }}>{{ prod.url }}</a>
+                            </td>
+                            <td style="border: 5px solid black; text-align: center;">
+                                <font color="green">{{ prod.price }}</font>
+                            </td>
+                            <div>
+                                <td style="border: 5px solid black;">
+                                    <div style="horiz-align: center; vertical-align: center; margin:0 auto;">
+                                        <input type="text" id="pref_price">
+                                        <p>€</p>
+                                    </div>
+                                </td>
+                            </div>
+                            <td>
+                                <input id="remove_product" onclick="" type="button" name="submit" value="Delete">
+                            </td>
+                        </tr>
+                {% endfor %}
+          </table>
+        </div>
+
+
+    <!--
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js">
+            function juckt() {
+                var bla = $('amzn_url').val();
+                console.log("Bla", bla);
+            }
+            function send_value(){
+                 $.ajax({
+                     url: '/target_view/',
+                     method : 'POST',
+                     data: {quantity: $('#theInput').val()},
+                     beforeSend: function() {
+                      // things to do before submit
+                     },
+                     success: function(response) {
+                        alert(response)
+                     }
+                 });
+             }
+
+             $('#username_exists_form').on('submit',function(e){
+                e.preventDefault();
+                var username = $(this).find('input').val();
+                $.get('/exists/',
+                      {'username': username},
+                      function(response){ $('#response_msg').text(response.msg); }
+                );
+             });
+
+             function btn_click() {
+                 var x = [document.getElementById('amzn_url').value, document.getElementById('desired_price').value]
+                 console.log(document.getElementById('amzn_url').value)
+                 return x
+             }
+        </script>
+        -->
+
+    </body>
+</html>
