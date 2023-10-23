@@ -66,7 +66,14 @@ def GetInputValue(request):
     return redirect(request, 'products')"""
 
 @csrf_exempt
-def xy(request):
+def delete_prod(request):
+    product_index = int(request.POST[list(request.POST)[1]])
+    print("INdex:", product_index)
+    Product.objects.all()[product_index].delete()
+    return redirect('endpoint')
+
+@csrf_exempt
+def endpoint(request):
     products = [product for product in Product.objects.all()]
     attributes = []
     return render(request, 'products/product_list.html',
@@ -78,9 +85,9 @@ def add_prod(request):
     attributes = []
 
     if request.method == 'GET':
-        return redirect('xy')
+        return redirect('endpoint')
     if request.method == 'POST':
-        print("post", request.method)
+        print("post", request.POST)
         if request.POST.get('submit') == 'Delete':
             print("delete button")
             print("delete button")
@@ -157,7 +164,7 @@ def add_prod(request):
             except Exception as e:
                 print("HTTP_Error")
 
-        return redirect('xy')
+        return redirect('endpoint')
 
 def product_data(request):
     #print("***"*5000)

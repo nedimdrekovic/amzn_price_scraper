@@ -61,8 +61,8 @@
                                 </td>
                             </div>
                             <td>
-                                <form action="delete_product" method="post">{% csrf_token %}
-                                    <input onclick="" type="button" name="submit" value="Delete">
+                                <form action="delete_product" method="POST">{% csrf_token %}
+                                    <button name="delete_product_from_list" type="submit" value= {{ forloop.counter0 }}>Delete</button>
                                 </form>
                             </td>
                         </tr>
