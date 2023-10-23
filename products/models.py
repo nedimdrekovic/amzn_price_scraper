@@ -1,19 +1,14 @@
 # Create your models here.
 from django.conf import settings
 from django.db import models
-from django.utils import timezone
 
 class Product(models.Model):
     #author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    img_url = models.URLField(default=None)
+    image = models.ImageField(upload_to='MEDIA_ROOT/')
     title = models.CharField(max_length=200, default=None)
-    url = models.URLField(default='')
+    url = models.URLField(default=None)#, on_delete=models.CASCADE)
     price = models.CharField(max_length=10, default=None)
     preferred_price = models.CharField(max_length=10, default=None)
-    #preferred_price = models.DecimalField(default="", max_digits=6, decimal_places=2)
-    # spaeter aendern
-    #published_date = models.DateTimeField(blank=True, null=True)
-    #published_date = models.CharField(max_length=100, null=True, default=None)
 
     def publish(self):
         #self.published_date = timezone.now()
