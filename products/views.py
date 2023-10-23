@@ -4,6 +4,7 @@ from .forms import ProductForm
 from bs4 import BeautifulSoup
 import requests
 import json
+import urllib.request
 
 from django.contrib.auth.models import User
 from django.http import HttpResponse, JsonResponse
@@ -73,113 +74,90 @@ def xy(request):
                    'products': products
                    })
 @csrf_exempt
-def add_prod(request, search=None):
-    print("Request:", request.method)
-    print("req", request.POST)
+def add_prod(request):
     attributes = []
-#    products = [product for product in Product.objects.all()]
 
     if request.method == 'GET':
-        print("POSTPOSTPOST:", request.POST[list(request.POST)[1]])
-        #return redirect('products/product_list.html')
-        # button action
-        #print(request.GET)
-        # query = request.GET[list(request.GET)[1]]  # get input value # improve it later
+        return redirect('xy')
     if request.method == 'POST':
+        print("post", request.method)
+        if request.POST.get('submit') == 'Delete':
+            print("delete button")
+            print("delete button")
+            # remove object from database
+            pass
         if request.POST[list(request.POST)[1]].strip() != '':
-        #if request.POST.get('add_product_to_list'):
-            #print("hinzufuegen")
             # scraping data of product
-            #print("POST:", list(request.POST))
-            print("POST2:", request.POST[list(request.POST)[1]])
             new_product_url = request.POST[list(request.POST)[1]]
-            #print("Typ:", type(new_product_url))
             new_product_max_price = request.POST[list(request.POST)[2]]
+            print(new_product_url)
+            print(request.POST)
+            try:
+                if "https://" not in new_product_url:
+                    new_product_url = "https://" + new_product_url
+                print("NPU:", new_product_url)
+                response = urllib.request.urlopen(new_product_url)
+                print("r",response)
+                status_code = response.getcode()
+                print(status_code)
+                if status_code == 200:
+                    print('Web site exists')
+                    webpage = requests.get(new_product_url, headers=HEADERS, cookies=cookies)
+                    soup = BeautifulSoup(webpage.content, "html.parser")
 
-            response = requests.get(request.POST[list(request.POST)[1]])
-            #print("Response:", response)
-            #if response == 200:
-            if True:
-                webpage = requests.get(new_product_url, headers=HEADERS, cookies=cookies)
-                soup = BeautifulSoup(webpage.content, "html.parser")
+                    #children = soup.find('div', {'id': "img-canvas"})
+                    children = soup.find_all("div", {"id": "imgTagWrapperId"})
+                    if children == None:
+                        new_product_image = "https://www.salonlfc.com/wp-content/uploads/2018/01/image-not-found-scaled.png"
+                    else:
+                        # children = children.findChildren('img')
+                        #new_product_image = children[-1].find("div", {"img", "src"})
+                        new_product_image = children[-1].find('img').get('src')
+                        for child in children:
+                            print("Child:", child)
+                        print("PI:", new_product_image)
 
-                #children = soup.find('div', {'id': "img-canvas"})
-                children = soup.find_all("div", {"id": "imgTagWrapperId"})
-                #print(len(allimages))
-                #print("Children Images", children)
-                #print("length:", len(children))
-                if children == None:
-                    new_product_image = "https://www.salonlfc.com/wp-content/uploads/2018/01/image-not-found-scaled.png"
+                    # am besten schon vorher in Liste einfuegen, damit nicht immer in Webseite
+                    # gesucht werden muss und Ladezeiten somit nicht unnoetig lang sind
+                    try:
+                        new_product_title = soup.find("span", attrs={"id": 'productTitle'}).string.strip()
+                        # Erscheinungsdatum: id=productSubtitle
+                        # product_title = product_title.string.strip().replace(',', ''
+                        print("-" * 50)
+                    except AttributeError:
+                        new_product_title = "NA"
+
+                    # alle Daten aus Datenbank in Tabelle einfügen, bis auf Preis.
+                    # Preis jedes Mal bei Aufruf aus Amazon-Webseite ausfiltern und vergleichen ob
+                    # sich Wert veraendert hat
+                    try:
+                        new_product_price = soup.find("span",
+                                                  attrs={'class': 'a-offscreen'}).string.strip()  # .string.strip().replace(',', '')
+                        print("Produktpreis:", new_product_price)
+                    except AttributeError:
+                        new_product_price = "NA"
+
+                    price = soup.find("span", attrs={'class': "a-offscreen"})  # aktueller Preis
+                    if price != None:
+                        price = price.string.strip()
+
+                    delete = False  # dummy value
+
+                    # create new product and add it to database
+                    prod = Product.objects.create(image=new_product_image,
+                                           title=new_product_title,
+                                           url=new_product_url,
+                                           price=new_product_price,
+                                           preferred_price=new_product_max_price)
+                    prod.save()
+
                 else:
-                    # children = children.findChildren('img')
-                    #new_product_image = children[-1].find("div", {"img", "src"})
-                    new_product_image = children[-1].find('img').get('src')
-                    for child in children:
-                        print("Child:", child)
-                    print("PI:", new_product_image)
+                    # Textanzeige im Browser hinzufuegen
+                    print('Web site does not exist')
+            except Exception as e:
+                print("HTTP_Error")
 
-                # am besten schon vorher in Liste einfuegen, damit nicht immer in Webseite
-                # gesucht werden muss und Ladezeiten somit nicht unnoetig lang sind
-                try:
-                    new_product_title = soup.find("span", attrs={"id": 'productTitle'}).string.strip()
-                    # Erscheinungsdatum: id=productSubtitle
-                    # product_title = product_title.string.strip().replace(',', ''
-                    print("-" * 50)
-                except AttributeError:
-                    new_product_title = "NA"
-
-                # alle Daten aus Datenbank in Tabelle einfügen, bis auf Preis.
-                # Preis jedes Mal bei Aufruf aus Amazon-Webseite ausfiltern und vergleichen ob
-                # sich Wert veraendert hat
-                try:
-                    new_product_price = soup.find("span",
-                                              attrs={'class': 'a-offscreen'}).string.strip()  # .string.strip().replace(',', '')
-                    print("Produktpreis:", new_product_price)
-                except AttributeError:
-                    new_product_price = "NA"
-
-                price = soup.find("span", attrs={'class': "a-offscreen"})  # aktueller Preis
-                if price != None:
-                    price = price.string.strip()
-
-                delete = False  # dummy value
-
-
-                # create new product and add it to database
-                prod = Product.objects.create(image=new_product_image,
-                                       title=new_product_title,
-                                       url=new_product_url,
-                                       price=new_product_price,
-                                       preferred_price=new_product_max_price)
-                prod.save()
-                prod = Product()
-                print("Produkt erstellt.")
-                """# nicht vergessen, dass product_preferred_url irgendwo hin muss
-                products.append({"img_url": new_product_image,
-                                 "title": new_product_title,
-                                 "url": new_product_url,
-                                 "price": new_product_price,
-                                 "delete": delete,
-                                 # "preferred_price": preferred_price,
-                                 })"""
-
-                #print("Products:", products)
-
-                """return render(request, 'products/product_list.html',
-                              {'attributes': attributes,
-                               'products': products
-                               })"""
-
-
-                #return http.HttpResponseRedirect('')
-
-                if len(Product.objects.all()) != 0:
-                    products = [product for product in Product.objects.all()]
-                else:
-                    products = []
-                print("Procuts:", [product.image for product in Product.objects.all()])
-                return redirect('xy')
-
+        return redirect('xy')
 
 def product_data(request):
     #print("***"*5000)

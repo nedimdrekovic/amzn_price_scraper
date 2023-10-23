@@ -11,4 +11,5 @@ urlpatterns = [
     #path('', views.add_prod, name='add_prod'),
     path('add_product', views.add_prod, name='add_prod'),
     path('', views.xy, name='xy'),
+    path('delete_product', views.add_prod, name='add_prod')
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

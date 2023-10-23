@@ -61,7 +61,9 @@
                                 </td>
                             </div>
                             <td>
-                                <input id="remove_product" onclick="" type="button" name="submit" value="Delete">
+                                <form action="delete_product" method="post">{% csrf_token %}
+                                    <input onclick="" type="button" name="submit" value="Delete">
+                                </form>
                             </td>
                         </tr>
                 {% endfor %}
