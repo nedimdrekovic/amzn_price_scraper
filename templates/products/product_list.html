@@ -5,7 +5,7 @@
         <title>Django Girls blog</title>
         <link rel="stylesheet" href="{% static 'css/products.css' %}">
     </head>
-    <body style="background-color:#BEBEBE">
+    <body onload="load()" style="background-color:#BEBEBE">
         <header class="page-header">
             <div class="container" style="text-align:center">
                 <h1 style="text-align:center" style="color:green"><b>Amazon Price Alert App</b></h1>
@@ -13,13 +13,17 @@
         </header>
 
     <center>
-        <form action="add_product" method='POST' style="text-align: center">{% csrf_token %}
-            <p>Amazon-Link:</p>
-            <input id="amzn_url" name="amzn_url" style="display: inline-block; width: 800px">
+        <form action="add_product" method='POST'>{% csrf_token %}
+            <div float="left">
+                <p>Amazon-Link:</p>
+                <input id="amzn_url" name="amzn_url" style="display: inline-block; width: 800px">
+                <br>
+                <p>Wunschpreis:</p>
+                <input id="desired_price" name="desired_price">
+                <p>€</p>
+            </div>
             <br>
-            <p>Wunschpreis:</p>
-            <input id="desired_price" name="desired_price">
-            <button name="add_product_to_list" type="submit">Hinzufügen</button>
+            <button name="add_product_to_list" type="submit" class="button1" role="button">Hinzufügen</button>
         </form>
     </center>
 
@@ -31,9 +35,10 @@
                     <tr>
                         <th style="width:5%;">Bild</th>
                         <th style="width:20%">Titel</th>
-                        <th style="width:30%">URL</th>
+                        <th style="width:5%">URL</th>
                         <th style="width:5%">Aktueller Preis</th>
-                        <th style="width:10%"><button>Upload-Datum</button></th>
+                        <th style="width:10%">Wunschpreis</th>
+                        <th style="width:5%">Löschen</th>
                     </tr>
                 </thead>
 
@@ -47,22 +52,19 @@
                                {{ prod.title }}
                             </td>
                             <td style="border: 5px solid black; width: 20%">
-                                <a href={{ prod.url }}>{{ prod.url }}</a>
+                                <a href={{ prod.url }} rel="noreferrer">{{ prod.url }}</a>
                             </td>
                             <td style="border: 5px solid black; text-align: center;">
-                                <font color="green">{{ prod.price }}</font>
+                                <font color="green" size="8px">{{ prod.price }}</font>
                             </td>
-                            <div>
+                            <div style="horiz-align: center; vertical-align: center; margin:0 auto;">
                                 <td style="border: 5px solid black;">
-                                    <div style="horiz-align: center; vertical-align: center; margin:0 auto;">
-                                        <input type="text" id="pref_price">
-                                        <p>€</p>
-                                    </div>
+                                    <font color="green" size="8px">{{ prod.preferred_price }}€</font>
                                 </td>
                             </div>
                             <td>
                                 <form action="delete_product" method="POST">{% csrf_token %}
-                                    <button name="delete_product_from_list" type="submit" value= {{ forloop.counter0 }}>Delete</button>
+                                    <button name="delete_product_from_list" type="submit" value= {{ forloop.counter0 }}>Entfernen</button>
                                 </form>
                             </td>
                         </tr>
@@ -70,6 +72,13 @@
           </table>
         </div>
 
+    <script type="text/javascript">
+        function load() {
+            // refresh page every x seconds
+            var refresh_time_seconds = 60;
+            setTimeout("window.open('http://127.0.0.1:7000', '_self');", refresh_time_seconds * 1000);
+        }
+    </script>
 
     <!--
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js">
