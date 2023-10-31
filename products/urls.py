@@ -5,11 +5,9 @@ from django.conf import settings
 
 urlpatterns = [
     # hinzufuegen einer View mit dem Namen product_list
-    # views.product_list ist also das gewünschte Ziel,
-    # wenn jemand 'http://127.0.0.1:8000/' aufruft
-    #path('', views.product_data, name='product_data'),
-    #path('', views.add_prod, name='add_prod'),
-    path('add_product', views.add_prod, name='add_prod'),
-    path('delete_product', views.delete_prod, name='delete_prod'),
-    path('', views.endpoint, name='endpoint'),
+    path('', views.show_webpage, name='show_webpage'),
+    path('add_product/', views.add_prod, name='add_prod'),
+    path('delete_product/', views.delete_prod, name='delete_prod'),
+    path('product_list/', views.product_list, name='product-list'),
               ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+

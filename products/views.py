@@ -1,14 +1,13 @@
 from .models import Product
-from .forms import ProductForm
 
 from bs4 import BeautifulSoup
 import requests
 import json
 
-from django.contrib.auth.models import User
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
+from django.core import serializers
 
 # Create your views here.
 # in der View wird die Logik der Anwendung geschrieben
@@ -20,39 +19,27 @@ HEADERS = ({
 })
 cookies = dict(language='de')
 
-EMAIL = "balkanbang19@gmail.com"
+sender_email = "balkanbang19@gmail.com"
+receiver_email = "nedimd@outlook.de"
 
-@csrf_exempt
-def delete_prod(request):
-    product_index = int(request.POST[list(request.POST)[1]])
-    Product.objects.all()[product_index].delete()
-    return redirect('endpoint')
+def send_email():
 
-@csrf_exempt
-def endpoint(request):
-    attributes = []
+    sender = sender_email
+    receivers = [receiver_email]
+    message = """From: From Person <from@example.com>
+    To: To Person <to@example.com>
+    Subject: SMTP email example
 
-    for product in Product.objects.all():
-        webpage = requests.get(product.url, headers=HEADERS, cookies=cookies)
-        soup = BeautifulSoup(webpage.content, "html.parser")
-        image, title, price = scrape_product_data(soup)
-
-        # update whole database # not a good way to go about things, but still okay for first solution
-        Product.objects.filter(url=product.url).update(image=image, title=title, price=price)
-
-    products = [product for product in Product.objects.all()]
-    return render(request, 'products/product_list.html',
-                  {'attributes': attributes,
-                   'products': products
-                   })
-
-def website_exists(url):
-    # response = urllib.request.urlopen(new_product_url) # unbedingt nochmal verändern
-    # status_code = response.getcode()
-    # print("Response:", response)
-    # print("Code:", status_code)
-    # if status_code == 200:
-    return True
+    This is a test message.
+    """
+    pass
+    """try:
+        smtpObj = smtplib.SMTP('localhost', 7000)
+        smtpObj.sendmail(sender, receivers, message)
+        smtpObj.quit()
+        print("Successfully sent email")
+    except smtplib.SMTPException:
+        pass"""
 
 def scrape_product_data(soup):
     # children = soup.find('div', {'id': "img-canvas"})
@@ -91,46 +78,154 @@ def scrape_product_data(soup):
     if price != None:
         price = price.string.strip()
 
+    print("New Price:", new_product_price)
     return new_product_image, new_product_title, new_product_price
+
+def website_exists(url):
+    # response = urllib.request.urlopen(new_product_url) # unbedingt nochmal verändern
+    # status_code = response.getcode()
+    # print("Response:", response)
+    # print("Code:", status_code)
+    # if status_code == 200:
+    return True
+
+@csrf_exempt
+def delete_prod(request):
+    if request.method == 'POST':
+        print("POST", request.POST)
+        url = request.POST.get('current_product_link')
+
+        Product.objects.filter(url=url).delete()
+        return JsonResponse({'status': 'deleted'})
+
+def show_webpage(request):
+    return render(request, 'products/product_list.html')
+
+@csrf_exempt
+def product_list(request):
+    products = Product.objects.all()
+    return JsonResponse({'products': list(products.values())})
+
+@csrf_exempt
+def show_product_list(request):
+    attributes = []
+
+    if request.POST.get('added_btn'):
+        # if add button is clicked
+        url = request.POST.get('amzn_url')
+        max_price = request.POST.get('desired_price')
+
+        webpage = requests.get(url, headers=HEADERS, cookies=cookies)
+        soup = BeautifulSoup(webpage.content, "html.parser")
+
+        # add product to list
+        image, title, price = add_prod(url, max_price, soup) #"https://www.salonlfc.com/wp-content/uploads/2018/01/image-not-found-scaled.png", "blabla", '3'
+        print("Preis:", price)
+        Product.objects.create(image=image, title=title, url=url, price=price, preferred_price=max_price)
+        products = [product for product in Product.objects.all()]
+
+        data = serializers.serialize('json', products)
+
+        return JsonResponse({'products': data, 'action': 'create'}, safe=False)
+
+    for product in Product.objects.all():
+        webpage = requests.get(product.url, headers=HEADERS, cookies=cookies)
+        soup = BeautifulSoup(webpage.content, "html.parser")
+        image, title, price = scrape_product_data(soup)
+
+        if price <= product.preferred_price:
+            print("Send email.")
+            #send_email()
+
+        # update whole database # not a good way to go about things, but still okay for first solution
+        Product.objects.filter(url=product.url).update(image=image, title=title, price=price)
+
+
+    products = [product for product in Product.objects.all().values()]
+    #return JsonResponse({"products": products})
+    return render(request, 'products/product_list.html',
+                  {'attributes': attributes,
+                   'products': products
+                   })
 
 @csrf_exempt
 def add_prod(request):
-    attributes = []
-
-    if request.method == 'GET':
-        return redirect('endpoint')
     if request.method == 'POST':
-        print("post", request.POST)
+        url = request.POST.get('amzn_url')
+        max_price = request.POST.get('desired_price')
+        print("ALle URLS:", list(Product.objects.all().values_list('url')))
+        existing_urls = list(Product.objects.all().values_list('url', flat=True))
+        print(existing_urls)
+        if url not in existing_urls:
+            if (url != '') and (max_price != ''): # noch genauer werden da nur Zahlen erlaubt bei Preis
+                try:
+                    if "https://" not in url:
+                        url = "https://" + url
 
-        # scraping data of product
-        url = request.POST[list(request.POST)[1]]
-        max_price = request.POST[list(request.POST)[2]]
+                    if website_exists(url):
+                        print('Web site exists')
+                        webpage = requests.get(url, headers=HEADERS, cookies=cookies)
+                        soup = BeautifulSoup(webpage.content, "html.parser")
 
-        if (url != '') and (max_price != ''): # noch genauer werden da nur Zahlen erlaubt bei Preis
-            try:
-                if "https://" not in url:
-                    url = "https://" + url
+                        image, title, price = scrape_product_data(soup)
 
-                if website_exists(url):
-                    print('Web site exists')
-                    webpage = requests.get(url, headers=HEADERS, cookies=cookies)
-                    soup = BeautifulSoup(webpage.content, "html.parser")
+                        # create new product and add it to database
+                        product = Product(image=image,
+                                        title=title,
+                                        url=url,
+                                        price=price,
+                                        preferred_price=max_price)
+                        product.save()
+                        status = "new_product"
+                        new_product_data = {
+                            'image': image,
+                            'title': title,
+                            'url': url,
+                            'price': price,
+                            'preferred_price': max_price,
+                            'status': status
+                        }
 
-                    image, title, price = scrape_product_data(soup)
+                        return JsonResponse(new_product_data)
+                    else:
+                        # Textanzeige im Browser hinzufuegen
+                        print('Web site does not exist')
+                except Exception as e:
+                    print("HTTP_Error")
 
-                    # create new product and add it to database
-                    Product.objects.create(image=image,
-                                           title=title,
-                                           url=url,
-                                           price=price,
-                                           preferred_price=max_price)
-                else:
-                    # Textanzeige im Browser hinzufuegen
-                    print('Web site does not exist')
-            except Exception as e:
-                print("HTTP_Error")
 
-        return redirect('endpoint')
+#   url, max_price, soup
+    attributes = []
+    print("adddd")
+
+    print("URL:", url)
+    print("Maxprice:", max_price)
+
+    if (url != '') and (max_price != ''): # noch genauer werden da nur Zahlen erlaubt bei Preis
+        try:
+            if "https://" not in url:
+                url = "https://" + url
+
+            if website_exists(url):
+                print('Web site exists')
+                #webpage = requests.get(url, headers=HEADERS, cookies=cookies)
+                #soup = BeautifulSoup(webpage.content, "html.parser")
+
+                image, title, price = scrape_product_data(soup)
+
+                # create new product and add it to database
+                product = Product(image=image,
+                                title=title,
+                                url=url,
+                                price=price,
+                                preferred_price=max_price)
+                return image, title, price
+            else:
+                # Textanzeige im Browser hinzufuegen
+                print('Web site does not exist')
+        except Exception as e:
+            print("HTTP_Error")
+    return "https://", "None", 0
 
 def product_data(request):
     #print("***"*5000)
@@ -362,58 +457,3 @@ def product_data(request):
                    'products': products,
                    #'images': media,    # unnoetig da bereits in products enthalten
                    'variable': 'Drekovic'})
-
-
-def YOUR_VIEW_DEF(request, pk):
-    Product.objects.filter(pk=pk).update(views=('views')+1)
-    return HttpResponseRedirect(request.GET.get('next'))
-
-def my_view(request):
-    print("request-method:", request.method)
-    print("Methode wurde aufgerufen.")
-    if request.method == 'POST':
-        if request.POST.get('sms'):
-            # do something with text area data since SMS was checked
-            print("erfolgreich aufgerufen")
-            print(request.POST.get('my_textarea'))
-
-        # process form as usual.
-
-def excel_formatting(request):
-    pass
-
-from django.shortcuts import redirect
-from django.shortcuts import get_object_or_404
-
-def product_edit(request, pk):
-    post = get_object_or_404(Product, pk=pk)
-    if request.method == "GET":
-        form = ProductForm(request.POST, instance=post)
-        if form.is_valid():
-            post = form.save(commit=False)
-            #post.author = request.user
-            #post.published_date = timezone.now()
-            post.save()
-            return redirect('products_detail', pk=post.pk)
-    else:
-        form = ProductForm(instance=post)
-    return render(request, 'products/products_edit.html', {'form': form})
-
-def product_new(request):
-    if request.method == "GET":
-        form = ProductForm(request.POST)
-        if form.is_valid():
-            product = form.save(commit=False)
-            #product.title = request.
-            #product.published_date = timezone.now()
-            product.save()
-            print("ok ok ok")
-            return redirect('product_detail', pk=product.pk)
-    else:
-        form = ProductForm()
-    return render(request, 'products/products_edit.html', {'form': form})
-
-
-def username_exists(request):
-    print("kkk")
-    return JsonResponse({'msg': 'Drekoviccc'})
