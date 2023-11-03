@@ -1,7 +1,7 @@
 {% extends 'products/base.html' %}
 {% block content %}
 
-    <body onload="load()" style="background-color:#BEBEBE">
+    <body onload="load()" style="background-color:#64b05b">
         <header class="page-header">
             <div class="container" style="text-align:center">
                 <h1 style="text-align:center" style="color:green"><b>Amazon Price Alert App</b></h1>
@@ -9,37 +9,40 @@
         </header>
 
         <center>
+            <p style='font-size: 40px; color:#8B0000;' id="product_message"></p>
             <div float="left" style="text-align:center">
-                <p>Amazon-Link:</p>
-                <input id="amzn_url" name="amzn_url" style="display: inline-block; width: 800px">
+                <p style='display: inline-block; font-size:40px;'>Amazon-Link:</p>
+                <input id="amzn_url" name="amzn_url" style="display: inline-block; width: 800px; height: 40px; font-size:30px;">
                 <br>
-                <p>Wunschpreis:</p>
-                <input id="desired_price" name="desired_price">
-                <p>€</p>
+                <p style='font-size:40px;'>Wunschpreis:</p>
+                <input id="desired_price" name="desired_price" style="width: 100px; height: 40px; font-size:30px; text-align: center">
+                <p style='display: inline-block; font-size:40px;'>€</p>
             </div>
             <br>
-            <button id="add_product_to_list" type="submit" name="add_product_btn" value="add_btn">Hinzufügen</button>
+            <button id="add_product_to_list" type="submit" name="add_product_btn" value="add_btn" class='button'>Hinzufügen</button>
         </center>
 
-        <table className="padding-table-columns" class="styled-table">
-            <!-- data attribute names -->
-            <thead>
-                <tr>
-                    <th style="width:5%;">Bild</th>
-                    <th style="width:20%">Titel</th>
-                    <th style="width:5%">URL</th>
-                    <th style="width:5%">Aktueller Preis</th>
-                    <th style="width:10%">Wunschpreis</th>
-                    <th style="width:5%">Löschen</th>
-                </tr>
-            </thead>
+        <div style="background-color:#BEBEBE; margin:0 auto; width: 60%">
+            <table className="padding-table-columns" class="styled-table" style="">
+                <!-- data attribute names -->
+                <thead>
+                    <tr>
+                        <th style="width:5%;">Bild</th>
+                        <th style="width:20%">Titel</th>
+                        <th style="width:5%">URL</th>
+                        <th style="width:5%">Aktueller Preis</th>
+                        <th style="width:10%">Wunschpreis</th>
+                        <th style="width:5%">Löschen</th>
+                    </tr>
+                </thead>
 
 
-            <!-- data sets -->
-            <tbody class="product_body">
+                <!-- data sets -->
+                <tbody class="product_body">
 
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        </div>
 
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
     <script type="text/javascript">
@@ -49,12 +52,16 @@
             //var refresh_time_seconds = 60;
             //setTimeout("window.open('http://127.0.0.1:' + port.toString(), '_self');", refresh_time_seconds * 1000);
         }
-        function add_new_product_entry(product_image, product_title, product_url, product_price, product_preferred_price) {
-            var price_color = "red"
-            console.log(product_price, product_preferred_price)
+
+        function get_new_product_entry(product_image, product_title, product_url, product_price, product_preferred_price) {
+            var price_color = "black"
+
+            product_price = Number(product_price)
+            product_preferred_price = Number(product_preferred_price).toFixed(2) // allowing only 2 decimal digits
             if (product_price <= product_preferred_price) {
                 price_color = 'green'
             }
+
             var product_tag = `
                 <tr style="text-align: center">
                     <td>
@@ -67,7 +74,7 @@
                         <a href=${product_url}>${product_url}</a>
                     </td>
                     <td>
-                        <font face='cursive,serif' style="color:${price_color}" size="8px">${product_price}</font>
+                        <font face='cursive,serif' style="color:${price_color}" size="8px">${product_price}€</font>
                     </td>
                     <td>
                         <font face='cursive,serif' size="8px">${product_preferred_price}€</font>
@@ -88,11 +95,9 @@
                     dataType: 'json',
                 }).done(function (response) {
                     for (var product of response['products']) {
-                        console.log(product)
-                        temp = add_new_product_entry(
-                            product['image'], product['title'], product['url'], product['price'].slice(0, -1), product['preferred_price'])
-
-                        $('.product_body').append(temp)
+                        product_entry = get_new_product_entry(
+                            product['image'], product['title'], product['url'], product['price'], product['preferred_price'])
+                        $('.product_body').append(product_entry)
                     }
                 });
 
@@ -112,22 +117,25 @@
                             'amzn_url': amzn_url,
                             'desired_price': desired_price
                         },
-                    }).done(function (response) {
-                        //if (response['status'] == 'new_product') {
-                            var product = response // check if product contains all attributes (later)
-                            product['price'] = parseFloat(product['price'].replace(/,/g, '')) // convert string to float
-                            if (product['preferred_price'].includes('.')) {
-                                product['preferred_price'] = parseFloat(product['preferred_price'].replace(/,/g, ''))
-                            } else if (product['preferred_price'].includes(',')) {
-                                var temp = product['preferred_price'].split(',')
-                                var before_comma = parseInt(temp[0])
-                                var after_comma = parseInt(temp[1]) / (10 ** temp[1].length)
-                                product['preferred_price'] = parseFloat(before_comma + after_comma)
-                            }
-                            temp = add_new_product_entry(
+                    }).done(function (product) {
+                        message = ""
+                        if (product['status'] == 'new_product_created') {
+                            // check if product contains all attributes (later)
+                            new_product = get_new_product_entry(
                                 product['image'], product['title'], product['url'], product['price'], product['preferred_price'])
-                            $('.product_body').append(temp)
-                       // }
+                            $('.product_body').append(new_product)
+                        } else {
+                            if (product['status'] == 'is_already_in_list') {
+                                message = "Dieses Produkt befindet sich bereits in deiner Liste."
+                            } else if (product['status'] == "already_under_limit_price") {
+                                message = "Der aktuelle Preis des Produkts ist bereits unter dem gewünschten Preis. " +
+                                    "Öffne den Link und kaufe das Produkt."
+                                document.getElementById('product_message').style = 'font-size: 20px; color:#DC143C;'
+                            } else if (product['status'] == "only_numbers") {
+                                message = 'Es sind nur numerische Werte für das Wunschpreis-Feld erlaubt.'
+                            }
+                        }
+                        document.getElementById('product_message').innerHTML = message
                     })
                     $('#amzn_url').val('') // reset the input field
                     $('#desired_price').val('') // reset the input field

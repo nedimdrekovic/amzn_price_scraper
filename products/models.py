@@ -9,6 +9,7 @@ class Product(models.Model):
     url = models.URLField(default=None)#, on_delete=models.CASCADE)
     price = models.CharField(max_length=10, default=None)
     preferred_price = models.CharField(max_length=10, default=None)
+    mail_has_been_sent = models.BooleanField(default=False)
 
     def publish(self):
         #self.published_date = timezone.now()
