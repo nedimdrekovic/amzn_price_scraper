@@ -11,7 +11,6 @@ from email.message import EmailMessage
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
-from django.core import serializers
 
 # Create your views here.
 # in der View wird die Logik der Anwendung geschrieben
@@ -25,9 +24,9 @@ HEADERS = ({
 cookies = dict(language='de')
 
 # Define email sender and receiver
-email_sender = 'x'
+email_sender = 'maxmustermann@gmail.com'
 email_password = 'abc' # via google mail
-email_receiver = 'y'
+email_receiver = 'erikamustermann@gmail.com'
 
 def send_email(url, price, preferred_price):
     # Set the subject and body of the email
