@@ -9,7 +9,7 @@
         </header>
 
         <center>
-            <p style='font-size: 40px; color:#8B0000;' id="product_message"></p>
+            <p style='font-size: 40px; color:#0000ff;' id="product_message"></p>
             <div float="left" style="text-align:center">
                 <p style='display: inline-block; font-size:40px;'>Amazon-Link:</p>
                 <input id="amzn_url" name="amzn_url" style="display: inline-block; width: 800px; height: 40px; font-size:30px;">
@@ -22,13 +22,12 @@
             <button id="add_product_to_list" type="submit" name="add_product_btn" value="add_btn" class='button'>Hinzufügen</button>
         </center>
 
-        <div style="background-color:#BEBEBE; margin:0 auto; width: 60%">
-            <table className="padding-table-columns" class="styled-table" style="">
+            <table className="padding-table-columns" class="styled-table" style="background-color:#ffc09f">
                 <!-- data attribute names -->
                 <thead>
                     <tr>
                         <th style="width:5%;">Bild</th>
-                        <th style="width:20%">Titel</th>
+                        <th style="width:10%">Titel</th>
                         <th style="width:5%">URL</th>
                         <th style="width:5%">Aktueller Preis</th>
                         <th style="width:10%">Wunschpreis</th>
@@ -42,7 +41,6 @@
 
                 </tbody>
             </table>
-        </div>
 
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
     <script type="text/javascript">
@@ -71,7 +69,7 @@
                         ${product_title}
                     </td>
                     <td>
-                        <a href=${product_url}>${product_url}</a>
+                        <a href=${product_url} style="word-wrap:break-word;">${product_url}</a>
                     </td>
                     <td>
                         <font face='cursive,serif' style="color:${price_color}" size="8px">${product_price}€</font>
@@ -87,13 +85,37 @@
             return product_tag
         }
 
+
             $(document).ready(function () {
+                // reload page every 30 seconds to scrape data of amazon product
+
+                function refresh() {
+                    $.ajax({
+                        type: 'GET',
+                        url: '/product_list/',
+                        success: function(data) {
+                            console.log("Refresh.")
+                            var seconds = 20
+                            setTimeout(refresh, seconds * 1000);
+                        }
+                    });
+                }
+                $(function(){
+                    refresh();
+                });
+
+
+
                 /* List product list */
                 $.ajax({
                     type: 'GET',
                     url: '/product_list/',
                     dataType: 'json',
                 }).done(function (response) {
+                    if (response['status'] == "data_not_found") {
+                        document.getElementById('product_message').innerHTML = "Daten konnten nicht geupdatet werden. Bitte erneut versuchen."
+                        document.getElementById('product_message').innerHTML = "Daten konnten nicht geupdatet werden. Bitte erneut versuchen."
+                    }
                     for (var product of response['products']) {
                         product_entry = get_new_product_entry(
                             product['image'], product['title'], product['url'], product['price'], product['preferred_price'])
@@ -130,9 +152,11 @@
                             } else if (product['status'] == "already_under_limit_price") {
                                 message = "Der aktuelle Preis des Produkts ist bereits unter dem gewünschten Preis. " +
                                     "Öffne den Link und kaufe das Produkt."
-                                document.getElementById('product_message').style = 'font-size: 20px; color:#DC143C;'
+                                document.getElementById('product_message').style = 'font-size: 20px; color:#0000ff;'
                             } else if (product['status'] == "only_numbers") {
                                 message = 'Es sind nur numerische Werte für das Wunschpreis-Feld erlaubt.'
+                            } else if (product['status'] == "empty_input_field") {
+                                message = 'Kein Input-Feld leer lassen.'
                             }
                         }
                         document.getElementById('product_message').innerHTML = message

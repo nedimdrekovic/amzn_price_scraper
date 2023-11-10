@@ -2,7 +2,7 @@ from .models import Product
 
 from bs4 import BeautifulSoup
 import requests
-import json
+import math
 
 import smtplib
 import ssl
@@ -19,22 +19,23 @@ from django.core import serializers
 # und an ein template weitergegeben
 
 HEADERS = ({
-    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit / 537.36(KHTML, like Gecko) Chrome / 44.0.2403.157 Safari / 537.36'
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit / 537.36(KHTML, like Gecko) Chrome / 44.0.2403.157 Safari / 537.36',
+    'Accept': 'text/html'
 })
 cookies = dict(language='de')
 
 # Define email sender and receiver
-email_sender = 'balkanbang19@gmail.com'
-email_password = 'mpec qufu kdkd zagx'
-email_receiver = 'balkanbang199@gmail.com'
+email_sender = 'x'
+email_password = 'abc' # via google mail
+email_receiver = 'y'
 
 def send_email(url, price, preferred_price):
     # Set the subject and body of the email
     subject = 'Check out my new video!'
-    body = "Der Preis deines Artikels ist nun unter deinem Wunschpreis!: " + url + \
-           "\nDein Wunschpreis war " + preferred_price + \
-           "€ und der aktuelle Preis ist bei " + price + \
-           "€." \
+    body = "Der Preis deines Artikels ist nun unter deinem Wunschpreis!" + \
+           "\nDein Wunschpreis war " + str(preferred_price) + \
+           "€.\nDer aktuelle Preis liegt bei " + str(price) + \
+           "€. (" + url + ")"
 
     em = EmailMessage()
     em['From'] = email_sender
@@ -50,20 +51,35 @@ def send_email(url, price, preferred_price):
         smtp.login(email_sender, email_password)
         smtp.sendmail(email_sender, email_receiver, em.as_string())
 
-
-def scrape_product_data(soup):
+def scrape_image(soup):
     # children = soup.find('div', {'id': "img-canvas"})
+    new_product_image = "NA"
     children = soup.find_all("div", {"id": "imgTagWrapperId"})
     if children == None:
         new_product_image = "https://www.salonlfc.com/wp-content/uploads/2018/01/image-not-found-scaled.png"
     else:
         # children = children.findChildren('img')
         # new_product_image = children[-1].find("div", {"img", "src"})
-        new_product_image = children[-1].find('img').get('src')
-        for child in children:
-            print("Child:", child)
-        print("PI:", new_product_image)
+        pass
 
+    # children = children.find('img', recursive=False)
+    if children:
+        if type(children) == list:
+            new_product_image = children[-1].find("img")['src']
+        else:
+            new_product_image = children[-1].find("img")['src']
+    else: # other method
+        children = soup.find_all("div", {"class": "imgTagWrapper"})
+        """  tag = soup.find(id="imgTagWrapperId")
+        if tag is not None:
+            children = tag.find("img", recursive=False)
+            for child in children:
+                if child.has_attr('src'):
+                    new_product_image = child['src']"""
+         # "https://www.salonlfc.com/wp-content/uploads/2018/01/image-not-found-scaled.png"
+    return new_product_image
+
+def scrape_title(soup):
     # am besten schon vorher in Liste einfuegen, damit nicht immer in Webseite
     # gesucht werden muss und Ladezeiten somit nicht unnoetig lang sind
     try:
@@ -73,32 +89,72 @@ def scrape_product_data(soup):
         print("-" * 50)
     except AttributeError:
         new_product_title = "NA"
+    return new_product_title
 
+def scrape_price(soup):
     # alle Daten aus Datenbank in Tabelle einfügen, bis auf Preis.
     # Preis jedes Mal bei Aufruf aus Amazon-Webseite ausfiltern und vergleichen ob
     # sich Wert veraendert hat
     try:
-        new_product_price = soup.find("span", attrs={'class': 'a-offscreen'}).string.strip()  # .string.strip().replace(',', '')
+        new_product_price_v0 = soup.find("span", attrs={'class': 'a-color-price'})
+        new_product_price_v1 = soup.find("span", attrs={'class': 'a-offscreen'})
+        new_product_price_v2 = soup.find("span", attrs={'class': 'aok-offscreen'})
+        new_product_price_v3 = soup.find("span", attrs={'id': "price"})  # .text  # aktueller Preis
+        #new_product_price_v4 = soup.find("span", attrs={'class': "a-price-whole"})  # aktueller Preis
+        new_product_price_v5 = soup.find("span", attrs={'aria-hidden': "true"})  # aktueller Preis
 
-        # when above method doesnt work -> there are multiple ways to do that
-        if new_product_price == "":
-            new_product_price = soup.find("span", attrs={'class': "a-offscreen"})
-            if new_product_price.text:
-                new_product_price = soup.find("span", attrs={'class': "a-price-whole"})  # aktueller Preis
-                price_tags = new_product_price.find_next_siblings() # get next tags which includes n digits of price
-                new_product_price = new_product_price.text
-                for tag in price_tags:
-                    new_product_price += "" + tag.text
+        # checking multiple methods to
+        new_product_price_list = [new_product_price_v0,
+                                  new_product_price_v1,
+                                  new_product_price_v2,
+                                  new_product_price_v3,
+                                  #new_product_price_v4,
+                                  new_product_price_v5]
+        price_is_found = [True if price_found is not None else False for price_found in new_product_price_list]
+        if any(price_is_found): # if price is found / product is available
+            # iterate over different methods that find the price tag for the product
+            prices = []
+            for i, price_found in enumerate(price_is_found):
+                if price_found:
+                    price = new_product_price_list[i].text.replace(" ", "")
+                    prices.append(price)
+
+            # set price for the first solution that's been found and skip every other solution
+            new_product_price = ""
+            for price in prices:
+                if "nicht verfügbar" in price:
+                    new_product_price = "Derzeit nicht verfügbar."
+                if "€" in price:    # get first found solution
+                    new_product_price = price
+                    break
+        else: # if there is no price found
+            new_product_price = "NA"
+
+        """
+            new_product_price = soup.find("span", attrs={'class': "a-price-whole"})  # aktueller Preis
+            price_tags = new_product_price.find_next_siblings()  # get next tags which includes n digits of price
+            new_product_price = new_product_price.text
+            for tag in price_tags:
+                new_product_price += "" + tag.text"""
 
         new_product_price = new_product_price.replace(",", ".")
-        new_product_price = new_product_price.replace("€", "")
-        new_product_price = float(new_product_price)  # converting string to number
+        new_product_price = new_product_price.split("€")[0]
+        if new_product_price not in ["", "NA"]:
+            new_product_price = float(new_product_price)  # converting string to number
 
     except AttributeError:
         new_product_price = "NA"
     except ValueError:
         print("Kein Preis für das Produkt gefunden.")
         new_product_price = "NA"
+    return new_product_price
+
+def scrape_product_data(soup):
+    # scrape data for each property carefully to find data in most cases
+    new_product_image = scrape_image(soup)
+    new_product_title = scrape_title(soup)
+    new_product_price = scrape_price(soup)
+
     return new_product_image, new_product_title, new_product_price
 
 def website_exists(url):
@@ -121,8 +177,31 @@ def show_webpage(request):
 
 @csrf_exempt
 def product_list(request):
+    status = ""
+    for product in Product.objects.all().values():
+        webpage = requests.get(product['url'], headers=HEADERS, cookies=cookies)
+        soup = BeautifulSoup(webpage.text, "html.parser")
+
+        image, title, price = scrape_product_data(soup)
+
+        #if "NA" in [image, title, price]:
+        #    status = 'data_not_found'
+        if price != 'NA':
+            if price <= float(product['preferred_price']):
+                if not product['mail_has_been_sent']:
+                    print("Send email.")
+                    send_email(product['url'], price, product['preferred_price'])
+                    # set parameter to True so that email is sent only once
+                    Product.objects.filter(url=product['url']).update(mail_has_been_sent=True)
+            Product.objects.filter(url=product['url']).update(title=price)
+
+        if image != 'NA':
+            Product.objects.filter(url=product['url']).update(image=image)
+        if title != 'NA':
+            Product.objects.filter(url=product['url']).update(title=title)
+
     products = Product.objects.all()
-    return JsonResponse({'products': list(products.values())})
+    return JsonResponse({'products': list(products.values()), 'status': status})
 
 @csrf_exempt
 def add_prod(request):
@@ -131,88 +210,46 @@ def add_prod(request):
         max_price = request.POST.get('desired_price')
         existing_urls = list(Product.objects.all().values_list('url', flat=True)) # flat=True for returning QuerySets instead of 1-tuples
         if url not in existing_urls:
-            if (url != '') and (max_price != ''): # noch genauer werden da nur Zahlen erlaubt bei Preis
-                try:
+            try:
+                if (url != '') and (max_price != ''): # noch genauer werden da nur Zahlen erlaubt bei Preis
                     if "https://" not in url:
                         url = "https://" + url
 
                     if website_exists(url):
-                        print('Web site exists')
+                        print('Web site exists', url)
                         webpage = requests.get(url, headers=HEADERS, cookies=cookies)
                         soup = BeautifulSoup(webpage.content, "html.parser")
 
                         image, title, price = scrape_product_data(soup)
 
                         max_price = max_price.replace(",", ".")
-                        print(price, max_price)
-                        if price <= float(max_price):
+                        if price <= math.floor(float(max_price) * 100) / 100.0:
                             return JsonResponse({"url": url, "status": "already_under_limit_price"})
                         # create new product and add it to database
                         Product.objects.create(image=image,
                                                title=title,
                                                url=url,
                                                price=price,
-                                               preferred_price=float(max_price))
+                                               preferred_price=math.floor(float(max_price) * 100) / 100.0)
                         new_product_data = {
                             'image': image,
                             'title': title,
                             'url': url,
                             'price': price,
-                            'preferred_price': float(max_price),
+                            'preferred_price': math.floor(float(max_price) * 100) / 100.0,
                             'status': "new_product_created"
                         }
+                        # update product list once after adding the product
                         return JsonResponse(new_product_data)
                     else:
                         # Textanzeige im Browser hinzufuegen
                         print('Web site does not exist')
-                except ValueError:
-                    return JsonResponse({'status': 'only_numbers'})
-                except Exception as e:
-                    print("HTTP_Error")
+                else:
+                    return JsonResponse({'status': 'empty_input_field'})
+            except ValueError:
+                return JsonResponse({'status': 'only_numbers'})
+            except Exception as e:
+                print("HTTP_Error")
         else:
             return JsonResponse({'status': 'is_already_in_list'})
     return show_webpage(request)
-
-@csrf_exempt
-def show_product_list(request):
-    attributes = []
-
-    if request.POST.get('added_btn'):
-        # if add button is clicked
-        url = request.POST.get('amzn_url')
-        max_price = request.POST.get('desired_price')
-
-        webpage = requests.get(url, headers=HEADERS, cookies=cookies)
-        soup = BeautifulSoup(webpage.content, "html.parser")
-
-        # add product to list
-        image, title, price = add_prod(url, max_price, soup) #"https://www.salonlfc.com/wp-content/uploads/2018/01/image-not-found-scaled.png", "blabla", '3'
-        Product.objects.create(image=image, title=title, url=url, price=price, preferred_price=max_price)
-        products = [product for product in Product.objects.all()]
-
-        data = serializers.serialize('json', products)
-
-        return JsonResponse({'products': data, 'action': 'create'}, safe=False)
-
-    for product in Product.objects.all():
-        webpage = requests.get(product.url, headers=HEADERS, cookies=cookies)
-        soup = BeautifulSoup(webpage.content, "html.parser")
-        image, title, price = scrape_product_data(soup)
-
-        if price <= product.preferred_price:
-            if not product['mail_has_been_sent']:
-                product['mail_has_been_sent'] = True # to prevent that email is sent only once for each product
-                # maybe remove product from list # but then also remove coloring of text and variable 'mail_has_been_sent'
-                print("Send email.")
-                #send_email()
-
-        # update whole database # not a good way to go about things, but still okay for first solution
-        Product.objects.filter(url=product.url).update(image=image, title=title, price=price)
-
-
-    products = [product for product in Product.objects.all().values()]
-    #return JsonResponse({"products": products})
-    return render(request, 'products/product_list.html',
-                  {'attributes': attributes,
-                   'products': products
-                   })
